@@ -20,15 +20,25 @@ Ensure the following directory structure is followed:
 |           └──lot_2
 |           .
 |           .
+|   ├── BEST https://aiforthai.in.th/corpus.php ** requires login **
+|       └──best2019-r31-with-label
+|       └──best2019-r32-with-label
+|       └──best2019-r33-with-label
+|       └──best2019-r34-with-label
+|       └──best2019-r35-with-label
+|       └──best2019-r36-with-label
+|       └──best2020-r31-with-label
+|       └──best2020-r33-1001to2640-with-label
 |   └── prepare_data.py
 Then run this script to prepare the data of IAM
 """
+import cv2
+import pickle as pkl
+import numpy as np
 import sys
+import os
 
 sys.path.extend(['..'])
-import numpy as np
-import pickle as pkl
-import cv2
 
 
 def read_image(img_path, label_len, img_h=32, char_w=16):
@@ -107,11 +117,13 @@ def read_data(config):
                 if img_id[:img_id.rfind('-')] in partition_ids:
                     dir_data = img_id.split('-')
                     img_path = f'{data_folder_path}/words/{dir_data[0]}/{dir_data[0]}-{dir_data[1]}/{img_id}.png'
-                    img, valid_img = read_image(img_path, len(label), img_h, char_w)
+                    img, valid_img = read_image(
+                        img_path, len(label), img_h, char_w)
                     if valid_img:
-                        word_data[img_id] = [[char_map[char] for char in label], img]
+                        word_data[img_id] = [[char_map[char]
+                                              for char in label], img]
 
-    else:
+    elif dataset == 'RIMES':
         if partition == 'tr':
             partition_name = 'training'
         elif partition == 'vl':
@@ -122,11 +134,13 @@ def read_data(config):
         # create char_map using training labels
         with open(f'{data_folder_path}/ground_truth_training_icdar2011.txt', 'rb') as f:
             ids = f.read().decode('unicode_escape')
-            partition_ids = [i.split()[0] for i in ids.splitlines() if len(i) > 1]
+            partition_ids = [i.split()[0]
+                             for i in ids.splitlines() if len(i) > 1]
             words_raw = [i.split()[1] for i in ids.splitlines() if len(i) > 1]
 
         # Get list of unique characters and create dictionary for mapping them to integer
-        chars = np.unique(np.concatenate([[char for char in w_i.split()[-1]] for w_i in words_raw]))
+        chars = np.unique(np.concatenate(
+            [[char for char in w_i.split()[-1]] for w_i in words_raw]))
         char_map = {value: idx + 1 for (idx, value) in enumerate(chars)}
         char_map['<BLANK>'] = 0
         num_chars = len(char_map.keys())
@@ -134,7 +148,8 @@ def read_data(config):
         # Extract IDs for required set
         with open(f'{data_folder_path}/ground_truth_{partition_name}_icdar2011.txt', 'rb') as f:
             ids = f.read().decode('unicode_escape')
-            partition_ids = [i.split()[0] for i in ids.splitlines() if len(i) > 1]
+            partition_ids = [i.split()[0]
+                             for i in ids.splitlines() if len(i) > 1]
             words_raw = [i.split()[1] for i in ids.splitlines() if len(i) > 1]
 
         word_data = {}
@@ -144,10 +159,84 @@ def read_data(config):
             img_id = img_path[img_path.rfind('/')+1:-5]
             if valid_img:
                 try:
-                    word_data[img_id] = [[char_map[char] for char in label], img]
+                    word_data[img_id] = [[char_map[char]
+                                          for char in label], img]
                 except KeyError:
                     pass
 
+    elif dataset == 'BEST':
+        # create char map
+        partition_ids = []
+        words_raw = []
+        for file_name in os.listdir(data_folder_path):
+            for file in os.listdir(os.path.join(data_folder_path, file_name)):
+                if file.endswith('.label'):
+                    try:
+                        with open(os.path.join(data_folder_path, file_name, file), 'r', encoding='cp874') as f:
+                            for line in f:
+                                temp = line.split()
+                                partition_ids.append(temp[0])
+                                words_raw.append("".join(temp[1:]))
+                    except UnicodeDecodeError:  # for some files, the encoding is not cp874
+                        with open(os.path.join(data_folder_path, file_name, file), 'r', encoding='utf_16_le') as f:
+                            for line in f:
+                                temp = line.split()
+                                if len(temp) < 2:
+                                    continue
+                                partition_ids.append(temp[0])
+                                words_raw.append("".join(temp[1:]))
+                    break
+
+        # Get list of unique characters and create dictionary for mapping them to integer
+        chars = np.unique(np.concatenate(
+            [[char for char in w_i.split()[-1]] for w_i in words_raw]))
+        char_map = {value: idx + 1 for (idx, value) in enumerate(chars)}
+        char_map['<BLANK>'] = 0
+        num_chars = len(char_map.keys())
+
+        if partition == 'tr':
+            partition_names = ['best2019-r31-with-label', 'best2019-r32-with-label', 'best2019-r33-with-label',
+                               'best2019-r34-with-label', 'best2019-r35-with-label', 'best2019-r36-with-label']
+        elif partition == 'vl':
+            partition_names = ['best2020-r31-with-label']
+        else:
+            partition_names = ['best2020-r33-1001to2640-with-label']
+
+        # Extract IDs for required set
+        word_data = {}
+        img_id = 0
+        for file_name in partition_names:
+            partition_ids = []
+            words_raw = []
+            for file in os.listdir(os.path.join(data_folder_path, file_name)):
+                if file.endswith('.label'):
+                    try:
+                        with open(os.path.join(data_folder_path, file_name, file), 'r', encoding='cp874') as f:
+                            for line in f:
+                                temp = line.split()
+                                partition_ids.append(temp[0])
+                                words_raw.append("".join(temp[1:]))
+                    except UnicodeDecodeError:  # for some files, the encoding is not cp874
+                        with open(os.path.join(data_folder_path, file_name, file), 'r', encoding='utf_16_le') as f:
+                            for line in f:
+                                temp = line.split()
+                                if len(temp) < 2:
+                                    continue
+                                partition_ids.append(temp[0])
+                                words_raw.append("".join(temp[1:]))
+                    break
+
+            for img_path, label in zip(partition_ids, words_raw):
+                img_path = f'{data_folder_path}/{file_name}/{img_path}'
+                img, valid_img = read_image(
+                    img_path, len(label), img_h, char_w)
+                if valid_img:
+                    try:
+                        word_data[img_id] = [[char_map[char]
+                                              for char in label], img]
+                        img_id += 1
+                    except KeyError:
+                        pass
     print(f'Number of images = {len(word_data)}')
     print(f'Number of unique characters = {num_chars}')
 

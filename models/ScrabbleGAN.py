@@ -16,37 +16,44 @@ class Recognizer(nn.Module):
 
         self.convs = nn.Sequential(
             nn.Sequential(
-                nn.Conv2d(conv_is[0], cfg.r_fs[0], kernel_size=cfg.r_ks[0], padding=cfg.r_pads[0]),
+                nn.Conv2d(conv_is[0], cfg.r_fs[0],
+                          kernel_size=cfg.r_ks[0], padding=cfg.r_pads[0]),
                 nn.ReLU(True),
                 nn.MaxPool2d(2)
             ),
             nn.Sequential(
-                nn.Conv2d(conv_is[1], cfg.r_fs[1], kernel_size=cfg.r_ks[1], padding=cfg.r_pads[1]),
+                nn.Conv2d(conv_is[1], cfg.r_fs[1],
+                          kernel_size=cfg.r_ks[1], padding=cfg.r_pads[1]),
                 nn.ReLU(True),
                 nn.MaxPool2d(2)
             ),
             nn.Sequential(
-                nn.Conv2d(conv_is[2], cfg.r_fs[2], kernel_size=cfg.r_ks[2], padding=cfg.r_pads[2]),
+                nn.Conv2d(conv_is[2], cfg.r_fs[2],
+                          kernel_size=cfg.r_ks[2], padding=cfg.r_pads[2]),
                 nn.BatchNorm2d(cfg.r_fs[2]),
                 nn.ReLU(True)
             ),
             nn.Sequential(
-                nn.Conv2d(conv_is[3], cfg.r_fs[3], kernel_size=cfg.r_ks[3], padding=cfg.r_pads[3]),
+                nn.Conv2d(conv_is[3], cfg.r_fs[3],
+                          kernel_size=cfg.r_ks[3], padding=cfg.r_pads[3]),
                 nn.ReLU(True),
                 nn.MaxPool2d((2, 2), (2, 1), (0, 1))
             ),
             nn.Sequential(
-                nn.Conv2d(conv_is[4], cfg.r_fs[4], kernel_size=cfg.r_ks[4], padding=cfg.r_pads[4]),
+                nn.Conv2d(conv_is[4], cfg.r_fs[4],
+                          kernel_size=cfg.r_ks[4], padding=cfg.r_pads[4]),
                 nn.BatchNorm2d(cfg.r_fs[4]),
                 nn.ReLU(True)
             ),
             nn.Sequential(
-                nn.Conv2d(conv_is[5], cfg.r_fs[5], kernel_size=cfg.r_ks[5], padding=cfg.r_pads[5]),
+                nn.Conv2d(conv_is[5], cfg.r_fs[5],
+                          kernel_size=cfg.r_ks[5], padding=cfg.r_pads[5]),
                 nn.ReLU(True),
                 nn.MaxPool2d((2, 2), (2, 1), (0, 1))
             ),
             nn.Sequential(
-                nn.Conv2d(conv_is[6], cfg.r_fs[6], kernel_size=cfg.r_ks[6], padding=cfg.r_pads[6]),
+                nn.Conv2d(conv_is[6], cfg.r_fs[6],
+                          kernel_size=cfg.r_ks[6], padding=cfg.r_pads[6]),
                 nn.BatchNorm2d(cfg.r_fs[6]),
                 nn.ReLU(True)
             )
@@ -76,15 +83,22 @@ class ScrabbleGAN(nn.Module):
 
         # Get word list from lexicon to be used to generate fake images
         if cfg.dataset == 'IAM':
-            self.fake_words = pd.read_csv(cfg.lexicon_file, sep='\t', names=['words'])
+            self.fake_words = pd.read_csv(
+                cfg.lexicon_file, sep='\t', names=['words'])
             # filter words with len >= 20
-            self.fake_words = self.fake_words.loc[self.fake_words.words.str.len() < 20]
+            self.fake_words = self.fake_words.loc[self.fake_words.words.str.len(
+            ) < 20]
             self.fake_words = self.fake_words.words.to_list()
-        else:
+        elif cfg.dataset == 'RIMES':
             exception_chars = ['ï', 'ü', '.', '_', 'ö', ',', 'ã', 'ñ']
             self.fake_words = pd.read_csv(cfg.lexicon_file, '\t')['lemme']
             self.fake_words = [word.split()[-1] for word in self.fake_words
                                if (pd.notnull(word) and all(char not in word for char in exception_chars))]
+        elif cfg.dataset == 'BEST':
+            self.fake_words = []
+            with open(cfg.lexicon_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    self.fake_words.append(line.strip())
 
         fake_words_clean = []
         for word in self.fake_words:
@@ -107,14 +121,16 @@ class ScrabbleGAN(nn.Module):
         self.R = Recognizer(cfg)
         self.G = BGAN.Generator(resolution=cfg.resolution, G_shared=cfg.g_shared,
                                 bn_linear=cfg.bn_linear, n_classes=cfg.num_chars, hier=True)
-        self.D = BGAN.Discriminator(resolution=cfg.resolution, bn_linear=cfg.bn_linear, n_classes=cfg.num_chars)
+        self.D = BGAN.Discriminator(
+            resolution=cfg.resolution, bn_linear=cfg.bn_linear, n_classes=cfg.num_chars)
 
     def forward_fake(self, z=None, fake_y=None, b_size=None):
         b_size = self.batch_size if b_size is None else b_size
 
         # If z is not provided, sample it
         if z is None:
-            self.z = self.z_dist.sample([b_size, self.z_dim]).to(self.config.device)
+            self.z = self.z_dist.sample(
+                [b_size, self.z_dim]).to(self.config.device)
         else:
             self.z = z.repeat(b_size, 1).to(self.config.device)
 
@@ -128,7 +144,8 @@ class ScrabbleGAN(nn.Module):
 
         # Convert y into one-hot
         self.fake_y = fake_y.to(self.config.device)
-        self.fake_y_one_hot = F.one_hot(fake_y, self.num_chars).to(self.config.device)
+        self.fake_y_one_hot = F.one_hot(
+            fake_y, self.num_chars).to(self.config.device)
 
         self.fake_img = self.G(self.z, self.fake_y_one_hot)
 

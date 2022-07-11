@@ -2,7 +2,7 @@ import torch
 
 
 class Config:
-    dataset = 'RIMES'  # 'RIMES' / 'IAM'
+    dataset = 'BEST'  # 'RIMES' / 'IAM' / 'BEST'
     data_folder_path = './RIMES/'  # relative to ./data/
     img_h = 32
     char_w = 16
