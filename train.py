@@ -16,6 +16,13 @@ from utils.training_utils import ModelCheckpoint
 from losses_and_metrics import loss_functions, metrics
 from config import Config
 
+import matplotlib.font_manager as font_manager
+from matplotlib import rcParams
+#require Thai font
+for font in font_manager.findSystemFonts(fontpaths=r'./fonts/th', fontext='ttf'):
+    font_manager.fontManager.addfont(font)
+rcParams['font.family'] = 'Sarabun'
+
 seed = 0
 torch.manual_seed(seed)
 if torch.cuda.is_available():
@@ -24,7 +31,7 @@ np.random.seed(seed)
 
 level = logging.INFO
 format_log = '%(message)s'
-handlers = [logging.FileHandler('./output/output.log'), logging.StreamHandler()]
+handlers = [logging.FileHandler('./output/output.log', encoding='utf-8'), logging.StreamHandler()]
 logging.basicConfig(level=level, format=format_log, handlers=handlers)
 
 

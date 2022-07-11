@@ -3,7 +3,7 @@ import torch
 
 class Config:
     dataset = 'BEST'  # 'RIMES' / 'IAM' / 'BEST'
-    data_folder_path = './RIMES/'  # relative to ./data/
+    data_folder_path = '../../Best-Handwritten-Corpus'  # relative to ./data/
     img_h = 32
     char_w = 16
     partition = 'tr'  # 'tr' / 'vl' / 'te'
@@ -48,6 +48,11 @@ class Config:
 
     # Noise vector
     z_dim = 128
-    num_chars = 74 if dataset == 'IAM' else 93
+    if dataset=='RIMES':
+        num_chars = 93
+    elif dataset=='IAM':
+        num_chars = 74
+    elif dataset=='BEST':
+        num_chars = 68
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
