@@ -28,6 +28,7 @@ Ensure the following directory structure is followed:
 |       └──best2019-r35-with-label
 |       └──best2019-r36-with-label
 |       └──best2020-r31-with-label
+|       └──best2020-r33-1to1000
 |       └──best2020-r33-1001to2640-with-label
 |   └── prepare_data.py
 Then run this script to prepare the data of IAM
@@ -37,6 +38,7 @@ import pickle as pkl
 import numpy as np
 import sys
 import os
+import re
 
 sys.path.extend(['..'])
 
@@ -196,9 +198,9 @@ def read_data(config):
 
         if partition == 'tr':
             partition_names = ['best2019-r31-with-label', 'best2019-r32-with-label', 'best2019-r33-with-label',
-                               'best2019-r34-with-label', 'best2019-r35-with-label', 'best2019-r36-with-label']
+                               'best2019-r34-with-label', 'best2019-r35-with-label', 'best2019-r36-with-label', 'best2020-r31-with-label']
         elif partition == 'vl':
-            partition_names = ['best2020-r31-with-label']
+            partition_names = ['best2020-r33-1to1000']
         else:
             partition_names = ['best2020-r33-1001to2640-with-label']
 
@@ -208,26 +210,48 @@ def read_data(config):
         for file_name in partition_names:
             partition_ids = []
             words_raw = []
-            for file in os.listdir(os.path.join(data_folder_path, file_name)):
-                if file.endswith('.label'):
-                    try:
-                        with open(os.path.join(data_folder_path, file_name, file), 'r', encoding='cp874') as f:
-                            for line in f:
-                                temp = line.split()
-                                partition_ids.append(temp[0])
-                                words_raw.append("".join(temp[1:]))
-                    except UnicodeDecodeError:  # for some files, the encoding is not cp874
-                        with open(os.path.join(data_folder_path, file_name, file), 'r', encoding='utf_16_le') as f:
+            if partition == 'tr':
+                for file in os.listdir(os.path.join(data_folder_path, file_name)):
+                    if file.endswith('.label'):
+                        try:
+                            with open(os.path.join(data_folder_path, file_name, file), 'r', encoding='cp874') as f:
+                                for line in f:
+                                    temp = line.split()
+                                    partition_ids.append(temp[0])
+                                    words_raw.append("".join(temp[1:]))
+                        except UnicodeDecodeError:  # for some files, the encoding is not cp874
+                            with open(os.path.join(data_folder_path, file_name, file), 'r', encoding='utf_16') as f:
+                                for line in f:
+                                    temp = line.split()
+                                    if len(temp) < 2:
+                                        continue
+                                    partition_ids.append(temp[0])
+                                    words_raw.append("".join(temp[1:]))
+                        break
+            else:
+                for file in os.listdir(os.path.join(data_folder_path, 'best2020-r33-1001to2640-with-label')):
+                    if file.endswith('.label'):
+                        with open(os.path.join(data_folder_path, 'best2020-r33-1001to2640-with-label', file), 'r', encoding='utf_16') as f:
                             for line in f:
                                 temp = line.split()
                                 if len(temp) < 2:
                                     continue
+                                img_id = int(re.findall(
+                                    r"-(.*).png", temp[0])[0])
+                                if partition == 'vl':
+                                    if img_id > 1000:
+                                        break
+                                else:
+                                    if img_id < 1000:
+                                        continue
                                 partition_ids.append(temp[0])
                                 words_raw.append("".join(temp[1:]))
-                    break
-
+                        break
             for img_path, label in zip(partition_ids, words_raw):
-                img_path = f'{data_folder_path}/{file_name}/{img_path}'
+                if partition == 'vl':
+                    img_path = f'{data_folder_path}/best2020-r33-1to1000/{img_path}'
+                else:
+                    img_path = f'{data_folder_path}/{file_name}/{img_path}'
                 img, valid_img = read_image(
                     img_path, len(label), img_h, char_w)
                 if valid_img:
